@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DevPilot · Autonomous Software Engineer</title>
+<style>
+:root{
+  --bg:#0a0a0a;--panel:#131313;--panel-2:#191919;--panel-3:#202020;--line:#2a2a2a;--line-2:#363636;
+  --text:#f2f2ef;--muted:#a3a39c;--faint:#85857d;
+  --accent:#ff7a1a;--accent-soft:#ff7a1a1f;--accent-line:#ff7a1a66;
+  --ok:#62c784;--ok-soft:#62c78418;--warn:#f0b429;--warn-soft:#f0b4291a;--bad:#ff6b6b;--bad-soft:#ff6b6b1a;
+  --add:#173a24;--add-text:#9be3b2;--del:#3d1a1a;--del-text:#ffb4b4;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-underline-offset:2px}
+button{font:inherit}
+.hidden{display:none!important}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 24px;border-bottom:1px solid var(--line);background:#0d0d0d;position:sticky;top:0;z-index:5}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.01em}
+.brand .mark{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#ffb066)}
+.brand small{color:var(--muted);font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:11px}
+.run-pill{font:600 12px var(--mono);color:var(--muted);border:1px solid var(--line-2);border-radius:99px;padding:4px 10px;text-transform:uppercase;letter-spacing:.04em}
+.run-pill[data-state=running]{color:var(--accent);border-color:var(--accent-line)}
+.run-pill[data-state=complete]{color:var(--ok);border-color:#62c78455}
+.run-pill[data-state=error],.run-pill[data-state=configuration_error]{color:var(--bad);border-color:#ff6b6b55}
+.run-pill[data-state=confirmation_required]{color:var(--warn);border-color:#f0b42955}
+.layout{display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);gap:20px;max-width:1320px;margin:0 auto;padding:22px 24px 64px}
+.side{display:flex;flex-direction:column;gap:16px;position:sticky;top:72px;align-self:start}
+.main{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.card>h2{margin:0 0 12px;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.hero h1{margin:4px 0 6px;font-size:26px;line-height:1.15;letter-spacing:-.03em}
+.hero h1 span{color:var(--accent)}
+.hero p{margin:0;color:var(--muted)}
+label{display:block;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin:14px 0 6px}
+label .opt{text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint)}
+input,textarea{width:100%;border:1px solid var(--line-2);border-radius:8px;background:#0c0c0c;color:var(--text);padding:10px 12px;font:inherit;outline:none}
+input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+textarea{min-height:112px;resize:vertical}
+.btn{border:1px solid transparent;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer;background:var(--accent);color:#1a0b00}
+.btn:hover{filter:brightness(1.07)}
+.btn:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.btn.danger{background:transparent;color:var(--bad);border-color:#ff6b6b55}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.hint{color:var(--faint);font-size:12px;margin-top:6px}
+.banner{border-radius:10px;padding:12px 14px;border:1px solid var(--line-2);background:var(--panel-2);overflow-wrap:anywhere}
+.banner.error{border-color:#ff6b6b55;background:var(--bad-soft);color:#ffd6d6}
+.banner.warn{border-color:#f0b42955;background:var(--warn-soft);color:#ffe7b0}
+.banner.ok{border-color:#62c78455;background:var(--ok-soft);color:#cdf3d9}
+.banner b{display:block;margin-bottom:2px}
+.banner+.banner{margin-top:8px}
+.loading{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;margin-top:12px}
+.spinner{width:14px;height:14px;border:2px solid var(--line-2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spinner{animation:none}}
+/* live activity */
+.stages{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.stage{display:grid;grid-template-columns:22px minmax(150px,220px) 96px minmax(0,1fr);gap:10px;align-items:start;padding:7px 6px;border-radius:8px}
+.stage:hover{background:var(--panel-2)}
+.dot{width:12px;height:12px;border-radius:50%;margin-top:4px;border:2px solid var(--line-2);background:transparent}
+.stage .name{font-weight:600}
+.stage .state{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--faint);padding-top:2px}
+.stage .detail{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.stage[data-state=running] .dot{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 3px var(--accent-soft)}
+.stage[data-state=running] .state{color:var(--accent)}
+.stage[data-state=complete] .dot{border-color:var(--ok);background:var(--ok)}
+.stage[data-state=complete] .state{color:var(--ok)}
+.stage[data-state=blocked] .dot{border-color:var(--warn);background:var(--warn-soft)}
+.stage[data-state=blocked] .state{color:var(--warn)}
+.stage[data-state=failed] .dot{border-color:var(--bad);background:var(--bad)}
+.stage[data-state=failed] .state{color:var(--bad)}
+.stage[data-state=skipped] .dot,.stage[data-state=notrun] .dot{border-style:dashed}
+.stage[data-state=skipped] .name,.stage[data-state=notrun] .name,.stage[data-state=waiting] .name{color:var(--muted)}
+/* council */
+.reviewers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.reviewer{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.reviewer h3{margin:0;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+.badge{display:inline-flex;align-items:center;gap:6px;font:700 11px var(--mono);letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--line-2);border-radius:99px;padding:3px 9px;color:var(--muted);max-width:100%;overflow-wrap:anywhere}
+.badge.confirmed{color:var(--ok);border-color:#62c78466;background:var(--ok-soft)}
+.badge.review{color:var(--warn);border-color:#f0b42966;background:var(--warn-soft)}
+.badge.fp{color:#c9c9c4}
+.badge.critical{color:var(--bad);border-color:#ff6b6b66;background:var(--bad-soft)}
+.badge.high{color:var(--accent);border-color:var(--accent-line);background:var(--accent-soft)}
+.badge.unreviewed{color:var(--warn);border-color:#f0b42988;background:var(--warn-soft)}
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 12px;font-size:13px;margin:6px 0 0}
+.kv dt{color:var(--faint)}
+.kv dd{margin:0;overflow-wrap:anywhere}
+.field{font-size:13px;overflow-wrap:anywhere}
+.field>span{display:block;color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px}
+.gap{margin-top:12px}
+.list{margin:0;padding-left:18px}
+.list li{margin:2px 0}
+.chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}
+.lead{margin:0 0 14px;color:var(--muted)}
+.limits{margin-top:12px}
+/* evidence + diff */
+.code{background:#0b0b0b;border:1px solid var(--line);border-radius:8px;overflow:auto;font:12px/1.55 var(--mono);margin:6px 0 0}
+.code .ln{display:grid;grid-template-columns:52px minmax(0,1fr);white-space:pre}
+.code .ln i{font-style:normal;color:var(--faint);text-align:right;padding-right:12px;user-select:none;border-right:1px solid var(--line)}
+.code .ln code{padding-left:12px}
+.where{font:600 12px var(--mono);color:var(--text);margin-top:12px}
+.diff-file{font:600 12px var(--mono);padding:8px 12px;background:var(--panel-3);border-bottom:1px solid var(--line)}
+.diff .row{white-space:pre;padding:0 12px}
+.diff .add{background:var(--add);color:var(--add-text)}
+.diff .del{background:var(--del);color:var(--del-text)}
+.diff .hunk{color:#9dbcff;background:#141c2b}
+pre.text{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b0b0b;border:1px solid var(--line);border-radius:8px;padding:12px;margin:6px 0 0;font:12px/1.55 var(--mono);max-height:420px;overflow:auto}
+/* approval + results */
+.approval{border-color:var(--accent-line);background:linear-gradient(180deg,#1a120c,var(--panel) 140px)}
+.action{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--panel-2);margin-top:12px}
+.action h3{margin:0 0 10px;font-size:14px}
+.ticket{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.ticket.first{border-top:0;padding-top:0}
+.ticket .summary{font-weight:700;overflow-wrap:anywhere}
+details{margin-top:8px}
+summary{cursor:pointer;color:var(--muted);font-size:13px}
+.dependency{margin-top:12px;font-size:13px;color:var(--muted);border-left:2px solid var(--accent);padding-left:10px}
+.issue-row{display:grid;grid-template-columns:86px 56px minmax(0,1fr);gap:10px;align-items:center;font-size:13px;padding:6px 0;border-top:1px solid var(--line)}
+.issue-row:first-child{border-top:0}
+.muted{color:var(--muted)}
+.mono{font-family:var(--mono)}
+@media (max-width:1000px){
+  .layout{grid-template-columns:minmax(0,1fr);padding:16px}
+  .side{position:static}
+  .reviewers{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:640px){
+  .topbar{padding:12px 16px}
+  .brand small{display:none}
+  .stage{grid-template-columns:22px minmax(0,1fr) auto}
+  .stage .detail{grid-column:2/-1}
+  .issue-row{grid-template-columns:76px minmax(0,1fr)}
+  .issue-row .num{display:none}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><i class="mark" aria-hidden="true"></i>DevPilot <small>Autonomous engineering agent</small></div>
+  <span id="runPill" class="run-pill" data-state="idle" role="status">idle</span>
+</header>
+<div class="layout">
+  <aside class="side">
+    <section class="card hero">
+      <h1>Tell DevPilot what needs to <span>change.</span></h1>
+      <p>Hermes plans and reviews. Swytchcode runs only the actions your request needs, and Jira or Slack actions wait for your approval.</p>
+    </section>
+    <section class="card" aria-labelledby="taskTitle">
+      <h2 id="taskTitle">Task</h2>
+      <label for="repo">GitHub repository</label>
+      <input id="repo" placeholder="owner/repository" autocomplete="off">
+      <label for="jira">Jira project key <span class="opt">(only for Jira actions)</span></label>
+      <input id="jira" placeholder="DEV" autocomplete="off">
+      <label for="slack">Slack channel <span class="opt">(only for Slack actions)</span></label>
+      <input id="slack" placeholder="#engineering" autocomplete="off">
+      <label for="request">Request</label>
+      <textarea id="request" placeholder="Investigate the authentication bypass issue and create a Jira ticket for it."></textarea>
+      <div class="btn-row"><button id="run" class="btn" type="button">Run DevPilot</button></div>
+      <div id="loading" class="loading hidden" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span id="loadingText"></span></div>
+      <p class="hint">GitHub and repository reads run automatically. Jira and Slack actions run only after you approve the exact saved plan.</p>
+    </section>
+  </aside>
+  <main class="main">
+    <div id="banner" class="hidden" role="alert"></div>
+    <section class="card" aria-labelledby="activityTitle">
+      <h2 id="activityTitle">Live agent activity</h2>
+      <ol id="stages" class="stages"></ol>
+    </section>
+    <section id="approval" class="card approval hidden" aria-label="Approval required"></section>
+    <section id="results" class="card hidden" aria-label="Results"></section>
+    <section id="council" class="card hidden" aria-label="Engineering Council"></section>
+    <section id="finding" class="card hidden" aria-label="Engineering finding"></section>
+    <section id="diff" class="card hidden" aria-label="Proposed code change"></section>
+    <section id="issues" class="card hidden" aria-label="Open issues"></section>
+    <section class="card"><details><summary>Technical details</summary><pre id="tech" class="text">No run yet.</pre></details></section>
+  </main>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const S = {plan: null, busy: false, poll: null, live: null, status: null, result: null, statusSeq: 0, expiryTimer: null, expiredShown: false, receivedAt: 0};
+const ROLES = ['SECURITY', 'CODE', 'TEST'];
+// Each stage reflects only what the backend reported for these step names.
+const STAGES = [
+  ['request', 'Request received', ['Request']],
+  ['planning', 'Hermes planning', ['Hermes Planning']],
+  ['github', 'GitHub issue retrieval', ['GitHub Issue Search']],
+  ['repo', 'Repository inspection', ['Repository Discovery', 'Source Inspection']],
+  ['security', 'Security Reviewer', ['Security Reviewer']],
+  ['code', 'Code Reviewer', ['Code Reviewer']],
+  ['test', 'Test Reviewer', ['Test Reviewer']],
+  ['council', 'Engineering Council consensus', ['Consensus', 'Engineering Council']],
+  ['finding', 'Finding and proposed fix', ['Proposed Fix']],
+  ['approval', 'Awaiting approval', ['Confirmation']],
+  ['jira', 'Jira execution', ['Jira']],
+  ['slack', 'Slack notifications', ['Slack', 'Slack Status']],
+  ['final', 'Final result', ['Final Result']],
+];
+const STATE_LABEL = {waiting: 'Waiting', running: 'Running', complete: 'Completed', blocked: 'Blocked', skipped: 'Skipped', failed: 'Failed', notrun: 'Not run'};
+
+function esc(x) { return String(x ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c])); }
+function arr(x) { return Array.isArray(x) ? x : []; }
+function obj(x) { return x && typeof x === 'object' && !Array.isArray(x) ? x : {}; }
+function safeUrl(u) { return typeof u === 'string' && /^https?:\/\//i.test(u) ? u : null; }
+function link(u, text) { const s = safeUrl(u); return s ? `<a href="${esc(s)}" target="_blank" rel="noopener noreferrer">${esc(text)}</a>` : esc(text); }
+function plural(n, word) { return `${n} ${word}${n === 1 ? '' : 's'}`; }
+function show(id, html) { const el = $(id); el.innerHTML = html; el.classList.toggle('hidden', !html); }
+function load(text) { $('loadingText').textContent = text || ''; $('loading').classList.toggle('hidden', !text); }
+function banner(kind, title, text, extra = '') {
+  if (!title) return show('banner', '');
+  show('banner', `<div class="banner ${kind}"><b>${esc(title)}</b>${esc(text || '')}${extra}</div>`);
+}
+function errorMessage(text) { banner('error', 'DevPilot could not complete this request', text, '<div class="hint">Starting a new run creates a new plan; nothing from this run is reused.</div>'); }
+function pill(status) { $('runPill').dataset.state = status || 'idle'; $('runPill').textContent = String(status || 'idle').replace(/_/g, ' '); }
+function setBusy(busy) { S.busy = busy; $('run').disabled = busy; }
+function finish() { setBusy(false); load(''); }
+function stopPolling() { clearInterval(S.poll); S.poll = null; }
+function stopLive() { clearInterval(S.live); S.live = null; }
+function decisionBadge(decision) {
+  const cls = decision === 'CONFIRMED' ? 'confirmed' : decision === 'FALSE_POSITIVE' ? 'fp' : 'review';
+  return `<span class="badge ${cls}">${esc(String(decision || 'unknown').replace(/_/g, ' '))}</span>`;
+}
+function severityBadge(sev) { const s = String(sev || 'unknown'); return `<span class="badge ${s === 'CRITICAL' ? 'critical' : s === 'HIGH' ? 'high' : ''}">${esc(s)}</span>`; }
+
+// ---------- live activity ----------
+function stageState(names, steps, terminal) {
+  const found = steps.map(obj).filter(s => names.includes(s.step));
+  if (!found.length) return {state: terminal ? 'notrun' : 'waiting', detail: ''};
+  const statuses = found.map(s => s.status);
+  const detail = found.map(s => typeof s.detail === 'string' ? s.detail : '').filter(Boolean).pop() || '';
+  if (statuses.includes('error')) return {state: 'failed', detail};
+  if (statuses.includes('running')) return {state: 'running', detail};
+  if (statuses.includes('confirmation_required')) return {state: 'blocked', detail};
+  if (statuses.every(s => s === 'skipped')) return {state: 'skipped', detail};
+  if (statuses.includes('complete')) return {state: 'complete', detail};
+  if (statuses.includes('cancelled')) return {state: 'skipped', detail};
+  return {state: terminal ? 'notrun' : 'waiting', detail};
+}
+// Why no approval was offered, from the returned result only.
+function approvalSkipReason(r) {
+  const requested = arr(obj(r.plan).requested_writes).filter(w => ['jira', 'slack', 'slack_status'].includes(w));
+  const names = requested.map(w => ({jira: 'Jira', slack: 'Slack', slack_status: 'a run-status notification'})[w]).join(' and ');
+  const external = arr(r.timeline).map(obj).filter(t => t.step === 'External writes' && typeof t.detail === 'string').map(t => t.detail).pop();
+  if (!requested.length) return 'No Jira or Slack action was requested.';
+  if (r.status === 'error' || r.status === 'configuration_error') return `${names} ${requested.length > 1 ? 'were' : 'was'} requested but not planned: the run ended with an error before approval.`;
+  if (obj(r.council).decision && obj(r.council).decision !== 'CONFIRMED') return `${names} ${requested.length > 1 ? 'were' : 'was'} requested but not planned: the Engineering Council did not confirm a finding.`;
+  return external || `${names} ${requested.length > 1 ? 'were' : 'was'} requested but could not be planned.`;
+}
+function renderStages() {
+  const st = obj(S.status), r = S.result ? obj(S.result) : null, council = r ? obj(r.council) : {};
+  const terminal = Boolean(st.terminal) || Boolean(r);
+  $('stages').innerHTML = STAGES.map(([key, label, names]) => {
+    let {state, detail} = stageState(names, arr(st.steps), terminal);
+    // Refinements read the returned result only; nothing is marked complete without backend data.
+    if (r && key === 'council' && council.decision && council.decision !== 'CONFIRMED') { state = 'blocked'; detail = council.summary || detail; }
+    if (r && key === 'finding' && state === 'notrun' && council.decision && council.decision !== 'CONFIRMED') { state = 'skipped'; detail = 'No confirmed finding, so no fix was proposed.'; }
+    if (r && key === 'approval' && r.status === 'cancelled') { state = 'skipped'; detail = 'Plan cancelled before approval.'; }
+    else if (r && key === 'approval' && r.status !== 'confirmation_required' && obj(r.plan).approved_at) { state = 'complete'; detail = 'Approved by you; the saved actions were executed.'; }
+    else if (r && key === 'approval' && state === 'notrun' && !arr(obj(r.plan).write_actions).length) { state = 'skipped'; detail = approvalSkipReason(r); }
+    if (r && key === 'final') {
+      state = r.status === 'complete' ? 'complete' : r.status === 'confirmation_required' ? 'blocked' : r.status === 'cancelled' ? 'skipped' : 'failed';
+      detail = detail || String(r.status || '').replace(/_/g, ' ');
+    }
+    return `<li class="stage" data-stage="${key}" data-state="${state}"><span class="dot" aria-hidden="true"></span><span class="name">${esc(label)}</span><span class="state">${STATE_LABEL[state]}</span><span class="detail">${esc(detail)}</span></li>`;
+  }).join('');
+}
+
+// ---------- council, finding, evidence ----------
+function renderCouncil(r) {
+  const council = obj(r.council), reviews = arr(r.reviews).map(obj), snap = obj(council.evidence_snapshot);
+  if (!council.decision) return show('council', '');
+  const errors = arr(council.evidence_errors).map(String);
+  const cards = ROLES.map(role => {
+    const rv = reviews.find(x => x.reviewer === role);
+    const title = role.charAt(0) + role.slice(1).toLowerCase() + ' Reviewer';
+    if (!rv) return `<article class="reviewer" data-role="${role}" data-decision="none"><h3>${esc(title)}</h3><span class="badge">Not run</span><div class="field muted">${esc(reviews.length ? 'No response was recorded for this reviewer.' : council.summary || 'The review did not run.')}</div></article>`;
+    const mine = errors.filter(e => e.startsWith(role + ' '));
+    const evidence = arr(rv.evidence).map(obj);
+    return `<article class="reviewer" data-role="${role}" data-decision="${esc(rv.decision)}">
+      <h3>${esc(title)}</h3>
+      <div class="chips" style="margin:0">${decisionBadge(rv.decision)}${severityBadge(rv.severity)}</div>
+      <div class="field"><span>Root cause</span>${esc(rv.root_cause || 'Not provided')}</div>
+      <div class="field"><span>Recommended fix</span>${esc(rv.recommended_fix || 'Not provided')}</div>
+      <div class="field"><span>Evidence cited</span>${evidence.length ? `<ul class="list">${evidence.map(e => `<li class="mono">${esc(e.path)} · lines ${esc(e.line_start)}–${esc(e.line_end)}</li>`).join('')}</ul>` : '<span class="muted">None</span>'}</div>
+      ${arr(rv.validation_plan).length ? `<div class="field"><span>Validation</span><ul class="list">${arr(rv.validation_plan).map(v => `<li>${esc(v)}</li>`).join('')}</ul></div>` : ''}
+      ${mine.length ? `<div class="banner warn"><b>Evidence problems</b>${mine.map(esc).join('<br>')}</div>` : ''}
+    </article>`;
+  }).join('');
+  const retrieval = obj(obj(r.analysis).retrieval), limits = [];
+  if (arr(snap.omitted_files).length) limits.push(`<div class="banner warn"><b>Source files left out of the reviewer context (not truncated)</b>${arr(snap.omitted_files).map(f => `${esc(obj(f).path)} — ${esc(obj(f).reason)}`).join('<br>')}</div>`);
+  if (arr(snap.unavailable_files).length) limits.push(`<div class="banner warn"><b>Source files that could not be used as evidence</b>${arr(snap.unavailable_files).map(f => `${esc(obj(f).path)} — ${esc(obj(f).reason)}`).join('<br>')}</div>`);
+  if (retrieval.complete === false) limits.push(`<div class="banner warn"><b>Issue list may be incomplete</b>Retrieved ${esc(retrieval.retrieved ?? '?')} open issue(s); stopped because: ${esc(retrieval.stop || 'unknown')}.</div>`);
+  const scope = obj(obj(r.plan).inspection_scope);
+  if (scope.mode) {
+    const notes = [];
+    if (scope.access_error) notes.push(`Repository access failed: ${scope.access_error}`);
+    if (scope.directories_not_visited_count) notes.push(`${scope.directories_not_visited_count} folder(s) not inspected: ${arr(scope.directories_not_visited).join(', ')}`);
+    if (scope.files_not_selected_count) notes.push(`${scope.files_not_selected_count} candidate file(s) not fetched: ${arr(scope.files_not_selected).join(', ')}`);
+    if (arr(scope.skipped_directories).length) notes.push(`Skipped vendor/build folders: ${arr(scope.skipped_directories).join(', ')}`);
+    limits.push(`<div class="banner ${scope.complete ? 'ok' : 'warn'}" data-scope="${scope.complete ? 'complete' : 'partial'}"><b>${scope.mode === 'repository' ? 'Repository analysis' : 'Issue investigation'} scope: ${scope.complete ? 'all candidates inspected within limits' : 'partial coverage'}</b>Files reviewed: ${esc(arr(scope.files_selected).join(', ') || 'none')}${notes.length ? '<br>' + notes.map(esc).join('<br>') : ''}${scope.mode === 'repository' ? '<br>This is a bounded inspection, not a complete security audit.' : ''}</div>`);
+  }
+  const other = errors.filter(e => !ROLES.some(role => e.startsWith(role + ' ')) && e !== council.summary);
+  if (other.length) limits.push(`<div class="banner warn"><b>Review limitations</b>${other.map(esc).join('<br>')}</div>`);
+  const files = arr(snap.files).map(obj);
+  show('council', `<h2>Engineering Council</h2>
+    <div class="chips">${decisionBadge(council.decision)}<span class="badge">${esc(council.agreement || '0/3')} agree</span><span class="badge">${esc(council.confidence || 'LOW')} confidence</span></div>
+    <p class="lead">${esc(council.summary || '')}</p>
+    <div class="reviewers">${cards}</div>
+    ${snap.sha256 ? `<details><summary>Evidence snapshot shared by every reviewer</summary><dl class="kv"><dt>Target issue</dt><dd>${snap.target_issue != null ? '#' + esc(snap.target_issue) : 'none'}</dd><dt>Context</dt><dd class="mono">${esc(snap.bytes)} bytes · sha256 ${esc(String(snap.sha256).slice(0, 16))}…</dd>${files.map(f => `<dt>File</dt><dd class="mono">${esc(f.path)} · ${esc(f.line_count)} lines</dd>`).join('')}</dl></details>` : ''}
+    ${limits.length ? `<div class="limits">${limits.join('')}</div>` : ''}`);
+}
+function codeLines(snippet, start) {
+  const first = Number.isInteger(start) ? start : 1;
+  return `<div class="code">${String(snippet ?? '').split('\n').map((line, i) => `<div class="ln"><i>${first + i}</i><code>${esc(line)}</code></div>`).join('')}</div>`;
+}
+function renderFinding(r) {
+  const f = r.finding ? obj(r.finding) : null;
+  if (!f || !f.root_cause) return show('finding', '');
+  const issue = obj(f.issue);
+  show('finding', `<h2>Engineering finding</h2>
+    <h3 style="margin:0 0 10px;font-size:18px;letter-spacing:-.01em">${esc(f.title)}</h3>
+    <div class="chips">${severityBadge(f.severity)}<span class="badge">${esc(f.confidence)} confidence</span>${issue.number != null ? `<span class="badge">${link(issue.url, 'GitHub #' + issue.number)}</span>` : ''}</div>
+    <div class="field"><span>Root cause</span>${esc(f.root_cause)}</div>
+    <div class="field gap"><span>Affected files</span>${arr(f.affected_files).length ? `<ul class="list">${arr(f.affected_files).map(obj).map(a => `<li><span class="mono">${esc(a.path)}</span> — ${esc(a.impact)}</li>`).join('')}</ul>` : '<span class="muted">None listed</span>'}</div>
+    <div class="field gap"><span>Source evidence</span>${arr(f.evidence).length ? arr(f.evidence).map(obj).map(e => `<div class="where">${esc(e.path)} · lines ${esc(e.line_start)}–${esc(e.line_end)}</div>${codeLines(e.snippet, e.line_start)}`).join('') : '<span class="muted">No evidence returned</span>'}</div>
+    <div class="field gap"><span>Recommended fix</span>${esc(f.recommended_fix || 'Not provided')}</div>
+    ${arr(f.validation_plan).length ? `<div class="field gap"><span>Validation plan</span><ul class="list">${arr(f.validation_plan).map(v => `<li>${esc(v)}</li>`).join('')}</ul></div>` : ''}`);
+}
+function diffHtml(diff) {
+  let out = '', open = false;
+  for (const line of String(diff).split('\n')) {
+    if (line.startsWith('--- ')) continue;
+    if (line.startsWith('+++ ')) { if (open) out += '</div>'; out += `<div class="code diff"><div class="diff-file">${esc(line.slice(4).replace(/^b\//, ''))}</div>`; open = true; continue; }
+    if (!open) { out += '<div class="code diff">'; open = true; }
+    const cls = line.startsWith('@@') ? 'hunk' : line.startsWith('+') ? 'add' : line.startsWith('-') ? 'del' : '';
+    out += `<div class="row ${cls}">${esc(line) || ' '}</div>`;
+  }
+  return out + (open ? '</div>' : '');
+}
+function renderDiff(r) {
+  const council = obj(r.council), f = r.finding ? obj(r.finding) : null, p = f && f.proposed_fix ? obj(f.proposed_fix) : null;
+  if (!council.decision) return show('diff', '');
+  let body;
+  if (p && typeof p.diff === 'string' && p.diff.trim()) {
+    body = `<div class="banner warn"><b>Preview only — not applied</b>Hermes proposed this diff from the retrieved source. DevPilot has not changed any code, and approving Jira or Slack actions does not apply it.</div>
+      <div class="chips gap"><span class="badge">${esc(p.risk || 'unknown')} risk</span></div>
+      <p style="margin:0 0 8px">${esc(p.summary || '')}</p>
+      ${arr(p.files).length ? `<ul class="list">${arr(p.files).map(obj).map(x => `<li><span class="mono">${esc(x.path)}</span> — ${esc(x.reason)}</li>`).join('')}</ul>` : ''}
+      ${diffHtml(p.diff)}
+      ${arr(p.test_plan).length ? `<div class="field gap"><span>Test plan</span><ul class="list">${arr(p.test_plan).map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}`;
+  } else if (council.decision === 'CONFIRMED') {
+    body = `<div class="banner error"><b>Proposed fix unavailable</b>${esc(r.status === 'error' && r.error ? r.error : 'No valid diff was returned for this finding.')}</div>`;
+  } else {
+    body = '<p class="muted" style="margin:0">No fix was proposed because the Engineering Council did not confirm a finding.</p>';
+  }
+  show('diff', `<h2>Proposed code change</h2>${body}`);
+}
+
+// ---------- approval transparency ----------
+function adfText(node) {
+  const n = obj(node);
+  if (n.type === 'text') return String(n.text ?? '');
+  const inner = arr(n.content).map(adfText).join(n.type === 'doc' ? '\n\n' : '');
+  return n.type === 'codeBlock' ? inner.split('\n').map(l => '    ' + l).join('\n') : inner;
+}
+// Problems that make the saved plan unsafe to approve; empty means every action is shown exactly.
+function approvalProblems(plan) {
+  const problems = [], actions = arr(plan.write_actions), target = obj(plan.target_issue);
+  if (!actions.length) problems.push('The saved plan lists no external actions.');
+  if (actions.some(a => !['jira', 'slack', 'slack_status'].includes(a))) problems.push('The saved plan contains an action this page cannot display.');
+  if (actions.includes('jira')) {
+    const tickets = arr(plan.jira_tickets);
+    if (tickets.length !== 1) problems.push(`Jira must have exactly one saved ticket, for the reviewed issue; the plan has ${tickets.length}.`);
+    tickets.forEach((t, i) => {
+      const ticket = obj(t), fields = obj(obj(ticket.body).fields);
+      if (!fields.summary || !obj(fields.project).key || !fields.description) problems.push(`Saved Jira ticket ${i + 1} is incomplete and cannot be shown exactly.`);
+      const forSubject = target.kind === 'repository_finding' ? ticket.subject === 'repository_finding' && ticket.issue_number == null : ticket.issue_number != null && ticket.issue_number === target.number;
+      if (ticket.reviewed !== true || !forSubject) problems.push(`Saved Jira ticket ${i + 1} is not for the issue the Engineering Council reviewed, so it cannot be approved.`);
+    });
+  }
+  if (actions.includes('slack')) {
+    const sp = obj(plan.slack_plan);
+    if (!sp.channel || !sp.text) problems.push('Slack is planned but the exact saved message is missing.');
+  }
+  if (actions.includes('slack_status')) {
+    const st = obj(plan.slack_status_plan);
+    if (!st.channel || !st.text) problems.push('A run-status notification is planned but its exact saved message is missing.');
+  }
+  return problems;
+}
+// The server decides expiry; the page only counts down to it (corrected for clock difference) and never extends it.
+function expiryState(r) {
+  const plan = obj(obj(r).plan), expiresAt = Number(plan.expires_at), serverTime = Number(obj(r).server_time);
+  if (!Number.isFinite(expiresAt)) return {known: false, expired: plan.expired === true};
+  const skew = Number.isFinite(serverTime) ? serverTime - (S.receivedAt || Date.now()) / 1000 : 0;
+  const remaining = expiresAt - (Date.now() / 1000 + skew);
+  return {known: true, expired: plan.expired === true || remaining <= 0, remaining, at: new Date((expiresAt - skew) * 1000)};
+}
+function expiryText(e) {
+  if (!e.known) return e.expired ? 'This approval has expired. Start a new run to plan again.' : 'Expiry time was not provided by the server.';
+  if (e.expired) return 'This approval has expired. Start a new run to plan again.';
+  const minutes = Math.max(1, Math.round(e.remaining / 60));
+  return `Approval expires at ${e.at.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} (about ${minutes} minute${minutes === 1 ? '' : 's'} left).`;
+}
+function updateExpiry() {
+  if (!S.result || S.result.status !== 'confirmation_required') return stopExpiry();
+  const e = expiryState(S.result);
+  $('expiry').textContent = expiryText(e);
+  if (e.expired && !S.expiredShown) { S.expiredShown = true; renderApproval(S.result); }
+}
+function stopExpiry() { clearInterval(S.expiryTimer); S.expiryTimer = null; }
+function renderApproval(r) {
+  stopExpiry();
+  if (r.status !== 'confirmation_required') return show('approval', '');
+  const plan = obj(r.plan), actions = arr(plan.write_actions), problems = approvalProblems(plan);
+  const tickets = arr(plan.jira_tickets).map(obj), blocked = arr(plan.blocked_jira_tickets).map(obj), sp = obj(plan.slack_plan), target = obj(plan.target_issue);
+  const expiry = expiryState(r);
+  const jira = actions.includes('jira') ? `<div class="action" data-action="jira"><h3>Create ${plural(tickets.length, 'Jira ticket')}</h3><p class="hint" style="margin-top:0">Purpose: track the finding the Engineering Council confirmed.</p>
+    ${tickets.map((t, i) => { const fields = obj(obj(t.body).fields); return `<div class="ticket${i ? '' : ' first'}" data-ticket="${i}" data-reviewed="${t.reviewed === true}">
+      <div class="summary">${esc(fields.summary)}</div>
+      <dl class="kv"><dt>Project</dt><dd class="mono">${esc(obj(fields.project).key)}</dd><dt>Type</dt><dd>${esc(obj(fields.issuetype).name)}</dd>
+      ${t.subject === 'repository_finding' ? `<dt>Subject</dt><dd>Repository finding: ${esc(t.issue_title || '')} <span class="badge">not linked to a GitHub issue</span></dd>` : `<dt>GitHub issue</dt><dd>${link(t.issue_url, '#' + t.issue_number)} ${esc(t.issue_title || '')}${t.issue_number === target.number ? ' <span class="badge">target</span>' : ''}</dd>`}
+      <dt>Severity</dt><dd>${severityBadge(t.severity)}</dd>
+      <dt>Review</dt><dd>${t.reviewed === true ? '<span class="badge confirmed">Reviewed · Council confirmed</span>' : '<span class="badge unreviewed">Not reviewed</span>'}</dd></dl>
+      <details><summary>Exact description to be sent</summary><pre class="text">${esc(adfText(fields.description))}</pre></details></div>`; }).join('')}</div>` : '';
+  const blockedHtml = blocked.length ? `<div class="action" data-action="blocked"><h3>${plural(blocked.length, 'issue')} from your request will not be ticketed</h3>
+    <div class="banner warn" data-blocked="${blocked.length}"><b>Blocked: not independently reviewed</b>A confirmed finding for issue #${esc(target.number)} is not evidence about any other issue, and DevPilot reviews one issue per run.</div>
+    ${blocked.map((b, i) => `<div class="ticket${i ? '' : ' first'}" data-blocked-issue="${esc(b.issue_number)}"><div class="summary">${link(b.issue_url, '#' + b.issue_number)} ${esc(b.issue_title || '')}</div>
+      <dl class="kv"><dt>Severity</dt><dd>${severityBadge(b.severity)}</dd><dt>Status</dt><dd><span class="badge unreviewed">Blocked · no ticket</span></dd><dt>Why</dt><dd>${esc(b.reason)}</dd></dl></div>`).join('')}</div>` : '';
+  const slack = actions.includes('slack') ? `<div class="action" data-action="slack"><h3>Post one Slack message to <span class="mono">${esc(sp.channel)}</span></h3><p class="hint" style="margin-top:0">Purpose: alert the team about the confirmed finding.</p>
+    <pre class="text" data-slack-text>${esc(sp.text)}</pre>
+    <div class="dependency">${sp.requires_jira_success ? `Sent only if ${tickets.length === 1 ? 'the Jira ticket is' : `all ${tickets.length} Jira tickets are`} created; if any Jira ticket fails, this message is withheld. On success one final line is appended, listing each created ticket as <span class="mono">Jira: KEY (link)</span>. Nothing else in the message changes.` : 'Sent on its own; it does not depend on any Jira action.'}</div></div>` : '';
+  const st = obj(plan.slack_status_plan), outcome = obj(plan.run_outcome);
+  const status = actions.includes('slack_status') ? `<div class="action" data-action="slack_status"><h3>Post one run-status notification to <span class="mono">${esc(st.channel)}</span></h3>
+    <p class="hint" style="margin-top:0">Purpose: report how this run ended (outcome: <b data-outcome>${esc(String(outcome.status || st.outcome || 'unknown').replace(/_/g, ' '))}</b>, coverage: ${esc(outcome.coverage || 'unknown')}). It is not a finding alert and never states that an unconfirmed problem was confirmed.</p>
+    <pre class="text" data-status-text>${esc(st.text)}</pre>
+    <div class="dependency">${st.appends_jira_outcome ? 'After the Jira step, one line with the real result is appended: <span class="mono">Jira: KEY (link)</span> if the ticket was created, or <span class="mono">Jira: ticket not created (reason)</span> if it was not. Nothing else changes.' : 'Sent exactly as shown; no Jira action is involved.'}</div></div>` : '';
+  const skipped = arr(r.timeline).map(obj).filter(t => t.step === 'External writes').map(t => `<div class="banner warn gap"><b>Requested action unavailable</b>${esc(t.detail)}</div>`).join('');
+  const label = [actions.includes('jira') ? plural(tickets.length, 'Jira ticket') : '', actions.includes('slack') ? '1 Slack message' : '', actions.includes('slack_status') ? '1 run-status notification' : ''].filter(Boolean).join(' + ');
+  const canApprove = !problems.length && plan.approvable === true && !expiry.expired;
+  const why = problems.length ? '' : expiry.expired ? '' : plan.approvable !== true ? `<div class="banner error gap" data-approval-blocked><b>Approval unavailable</b>The server reports this plan is not awaiting approval (state: ${esc(plan.state || 'unknown')}).</div>` : '';
+  S.expiredShown = expiry.expired;
+  show('approval', `<h2>Approval required</h2>
+    <p style="margin:0">DevPilot will perform exactly these saved actions after you approve. Approval covers Jira and Slack only. It does <b>not</b> change any code; applying a code change would need its own separate approval, which DevPilot does not offer yet.</p>
+    <p id="expiry" class="hint" data-expired="${expiry.expired}">${esc(expiryText(expiry))}</p>
+    ${actions.some(a => a === 'jira' || a === 'slack') ? '<h3 class="gap" style="margin-bottom:0">Escalate the confirmed finding</h3>' : ''}${jira}${blockedHtml}${slack}${status ? '<h3 class="gap" style="margin-bottom:0">Run-status notification</h3>' : ''}${status}${skipped}
+    ${problems.length ? `<div class="banner error gap" data-approval-blocked><b>Approval unavailable</b>${problems.map(esc).join('<br>')}</div>` : ''}${why}
+    <div class="btn-row">${canApprove ? `<button id="approve" class="btn" type="button" data-click="approve">Approve ${esc(label)}</button>` : ''}${plan.cancellable === true ? '<button id="cancelPlan" class="btn danger" type="button" data-click="cancel">Cancel plan</button>' : ''}</div>`);
+  if (canApprove) S.expiryTimer = setInterval(updateExpiry, 15000);
+}
+
+// ---------- results ----------
+function failureText(item) {
+  const e = obj(obj(item).error);
+  return `${esc(e.category || 'error')}: ${esc(e.message || 'No details returned.')}${e.action ? `<div class="hint">${esc(e.action)}</div>` : ''}`;
+}
+function renderResults(r) {
+  const actions = obj(r.actions), timeline = arr(r.timeline).map(obj), parts = [];
+  const step = name => timeline.find(t => t.step === name) || {};
+  if (Array.isArray(actions.jira)) {
+    parts.push(`<div class="action" data-result="jira"><h3>Jira</h3>${actions.jira.length ? actions.jira.map(obj).map(it => {
+      const ref = obj(it.ref);
+      if (it.ok === true) return `<div class="banner ok" data-ok="true"><b>Created ${ref.key ? link(ref.url, ref.key) : 'a Jira issue (key not returned)'} for GitHub #${esc(it.issue_number)}</b>${ref.url ? '' : '<span class="hint">No browser link: DEVPILOT_JIRA_BASE_URL is not set or not valid.</span>'}</div>`;
+      return `<div class="banner error" data-ok="false"><b>Not created for GitHub #${esc(it.issue_number)}</b>${failureText(it)}</div>`;
+    }).join('') : '<div class="banner error" data-ok="false"><b>No Jira ticket was attempted</b></div>'}</div>`);
+  }
+  if (actions.slack) {
+    const s = obj(actions.slack);
+    parts.push(`<div class="action" data-result="slack"><h3>Slack</h3>${s.ok === true ? `<div class="banner ok" data-ok="true"><b>Sent to ${esc(s.channel || 'the channel')}</b></div><details><summary>Message sent</summary><pre class="text">${esc(s.text || '')}</pre></details>` : `<div class="banner error" data-ok="false"><b>Not sent</b>${failureText(s)}</div>`}</div>`);
+  } else if (step('Slack').status === 'skipped' && /withheld/i.test(String(step('Slack').detail))) {
+    parts.push(`<div class="action" data-result="slack"><h3>Slack</h3><div class="banner warn" data-ok="false"><b>Not sent</b>${esc(step('Slack').detail)}</div></div>`);
+  }
+  if (actions.slack_status) {
+    const s = obj(actions.slack_status);
+    parts.push(`<div class="action" data-result="slack_status"><h3>Run-status notification</h3>${s.ok === true ? `<div class="banner ok" data-ok="true"><b>Sent to ${esc(s.channel || 'the channel')}</b></div><details><summary>Message sent</summary><pre class="text">${esc(s.text || '')}</pre></details>` : `<div class="banner error" data-ok="false"><b>Not sent</b>${failureText(s)}</div>`}</div>`);
+  }
+  if (!parts.length) return show('results', '');
+  const final = timeline.length ? timeline[timeline.length - 1] : {};
+  show('results', `<h2>Results</h2>${typeof final.detail === 'string' ? `<p style="margin:0">${esc(final.detail)}</p>` : ''}${parts.join('')}`);
+}
+function renderIssues(r) {
+  const a = obj(r.analysis), issues = arr(a.issues).map(obj);
+  if (!a.summary) return show('issues', '');
+  const rank = {CRITICAL: 0, HIGH: 1, NORMAL: 2};
+  const sorted = [...issues].sort((x, y) => (rank[x.severity] ?? 3) - (rank[y.severity] ?? 3)), shown = sorted.slice(0, 25);
+  show('issues', `<h2>Open issues</h2><p class="lead">${esc(a.summary)}</p>
+    <div>${shown.map(i => `<div class="issue-row">${severityBadge(i.severity)}<span class="num mono muted">#${esc(i.number)}</span><span>${link(i.url, i.title)}</span></div>`).join('')}</div>
+    ${sorted.length > shown.length ? `<p class="hint">${sorted.length - shown.length} more open issue(s) are not listed here.</p>` : ''}`);
+}
+
+// ---------- requests and result handling ----------
+function renderResult(r) {
+  r = obj(r);
+  S.result = r; S.receivedAt = Date.now();
+  try {
+    if (r.plan) S.plan = r.plan;
+    pill(r.status);
+    renderStages(); renderApproval(r); renderResults(r); renderCouncil(r); renderFinding(r); renderDiff(r); renderIssues(r);
+    if (r.status === 'error' || r.status === 'configuration_error') errorMessage(r.error || arr(r.errors).join(' ') || 'DevPilot run failed.');
+    else if (r.status === 'cancelled') banner('warn', 'Plan cancelled', 'No Jira or Slack action was sent.');
+    else if (r.status === 'confirmation_required' && r.error) banner('error', 'The run failed', r.error, '<div class="hint">You can still approve the requested run-status notification below, which reports this failure.</div>');
+    else if (!['complete', 'confirmation_required'].includes(r.status)) errorMessage('The server returned an unrecognised result.');
+    else banner('', '');
+  } catch (e) {
+    errorMessage('The result could not be displayed: ' + e.message);
+  }
+  const plan = obj(r.plan);
+  $('tech').textContent = JSON.stringify({status: r.status, plan: {tools: plan.tools, write_actions: plan.write_actions, state: plan.state}, actions: r.actions, error: r.error, errors: r.errors}, null, 2);
+}
+async function fetchJson(url, options) {
+  const response = await fetch(url, options);
+  let data;
+  try { data = await response.json(); } catch (e) { data = null; }
+  return {response, data: obj(data)};
+}
+async function post(path, body) {
+  const {response, data} = await fetchJson(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  if (!response.ok && !data.status) throw Error(data.error || `Request failed (${response.status})`);
+  return data;
+}
+// Status responses can arrive out of order; only the most recently requested one is applied.
+async function fetchStatus(token) {
+  const seq = ++S.statusSeq;
+  const {response, data} = await fetchJson('/api/status?token=' + encodeURIComponent(token));
+  return {response, data, current: seq === S.statusSeq};
+}
+async function refreshStatus(token) {
+  try {
+    const {response, data, current} = await fetchStatus(token);
+    if (current && response.ok && Array.isArray(data.steps)) { S.status = data; renderStages(); }
+  } catch (e) { /* activity stays as last reported */ }
+}
+function pollStatus(token) {
+  const started = Date.now(), timeout = 900000;
+  let inflight = false;
+  S.poll = setInterval(async () => {
+    if (inflight) return;
+    if (Date.now() - started > timeout) { stopPolling(); finish(); errorMessage('Stopped waiting after 15 minutes. The run may still finish on the server; start a new run to try again.'); return; }
+    inflight = true;
+    try {
+      const {response, data, current} = await fetchStatus(token);
+      if (!response.ok || !Array.isArray(data.steps)) throw Error('Status request failed (' + response.status + ')');
+      if (!current) return;
+      S.status = data; pill(data.status); renderStages(); load(data.detail || 'Agent working…');
+      if (data.terminal) {
+        const final = await fetchJson('/api/result?token=' + encodeURIComponent(token));
+        if (!final.response.ok || !final.data.status) throw Error('Final result unavailable (' + final.response.status + ')');
+        stopPolling(); renderResult(final.data); finish();
+      }
+    } catch (error) {
+      console.warn(error); load('Connection interrupted — retrying…');
+    } finally { inflight = false; }
+  }, 500);
+}
+function resetView() {
+  S.result = null; S.status = null; stopExpiry();
+  ['approval', 'results', 'council', 'finding', 'diff', 'issues'].forEach(id => show(id, ''));
+  banner('', ''); pill('idle'); renderStages();
+}
+async function execute(approved = false) {
+  if (!S.plan || S.busy) return;
+  setBusy(true);
+  const token = S.plan.token;
+  if (approved) {
+    stopExpiry(); show('approval', '');
+    load('Executing approved actions…');
+    S.live = setInterval(() => refreshStatus(token), 700);
+  } else {
+    load('Searching GitHub…');
+  }
+  try {
+    const d = await post(approved ? '/api/confirm' : '/api/execute', {token, confirmed: approved});
+    if (d.status === 'running') { pollStatus(token); return; }
+    stopLive();
+    if (d.status === 'confirmation_required' && !d.timeline) d.timeline = arr(obj(d.status_data).steps);
+    await refreshStatus(token);
+    renderResult(d);
+    finish();
+  } catch (e) {
+    stopLive(); finish(); await refreshStatus(token); errorMessage(e.message);
+  }
+}
+async function cancelPlan() {
+  if (!S.plan || S.busy) return;
+  setBusy(true); load('Cancelling…');
+  try {
+    const d = await post('/api/cancel', {token: S.plan.token});
+    await refreshStatus(S.plan.token);
+    renderResult(d);
+  } catch (e) {
+    errorMessage(e.message);
+  } finally { finish(); }
+}
+async function start() {
+  if (S.busy) return;
+  resetView(); S.plan = null; setBusy(true); load('DevPilot is planning…'); pill('running');
+  try {
+    const d = await post('/api/plan', {repo: $('repo').value, jira_project: $('jira').value, slack_channel: $('slack').value, request: $('request').value});
+    if (!obj(d.plan).token) throw Error('The server did not return a plan.');
+    S.plan = d.plan;
+    setBusy(false);
+    await execute(false);
+  } catch (e) {
+    finish(); pill('error'); errorMessage(e.message);
+  }
+}
+$('run').onclick = start;
+document.addEventListener('click', event => {
+  const target = event.target && event.target.closest ? event.target.closest('[data-click]') : null;
+  if (!target || target.disabled) return;
+  if (target.dataset.click === 'approve') execute(true);
+  if (target.dataset.click === 'cancel') cancelPlan();
+});
+renderStages();
+</script>
+</body>
+</html>
